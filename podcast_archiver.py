@@ -151,31 +151,35 @@ class PodcastArchiver:
 
         return filename
 
-    def linkToTargetFilename(self, link, must_have_ext=False):
+    def linkToTargetFilename(self, link, title, must_have_ext=False):
 
         # Remove HTTP GET parameters from filename by parsing URL properly
         linkpath = urlparse(link).path
-        basename = path.basename(linkpath)
 
-        _, ext = path.splitext(basename)
+        _, ext = path.splitext(linkpath)
         if must_have_ext and not ext:
             return None
 
+        if not title:
+            filename = path.basename(linkpath)
+        else:
+            filename = title+ext
+        
         # If requested, slugify the filename
         if self.slugify:
-            basename = PodcastArchiver.slugifyString(basename)
+            filename = PodcastArchiver.slugifyString(filename)
             self._feed_title = PodcastArchiver.slugifyString(self._feed_title)
         else:
-            basename.replace(path.pathsep, '_')
-            basename.replace(path.sep, '_')
+            filename.replace(path.pathsep, '_')
+            filename.replace(path.sep, '_')
             self._feed_title.replace(path.pathsep, '_')
             self._feed_title.replace(path.sep, '_')
 
         # Generate local path and check for existence
         if self.subdirs:
-            filename = path.join(self.savedir, self._feed_title, basename)
+            filename = path.join(self.savedir, self._feed_title, filename)
         else:
-            filename = path.join(self.savedir, basename)
+            filename = path.join(self.savedir, filename)
 
         return filename
 
@@ -271,7 +275,8 @@ class PodcastArchiver:
             if self.update:
                 for index, episode_dict in enumerate(linklist):
                     link = episode_dict['url']
-                    filename = self.linkToTargetFilename(link)
+                    title = episode_dict['title']
+                    filename = self.linkToTargetFilename(link,title)
 
                     if path.isfile(filename):
                         del(linklist[index:])
@@ -311,6 +316,7 @@ class PodcastArchiver:
 
         for cnt, episode_dict in enumerate(linklist):
             link = episode_dict['url']
+            title = episode_dict['title']
             if self.verbose == 1:
                 print("\r2. Downloading content ... {0}/{1}"
                       .format(cnt + 1, nlinks), end="", flush=True)
@@ -325,7 +331,7 @@ class PodcastArchiver:
                         print("\t * %10s: %s" % (key, episode_dict[key]))
 
             # Check existence once ...
-            filename = self.linkToTargetFilename(link)
+            filename = self.linkToTargetFilename(link, title)
 
             if self.verbose > 1:
                 print("\tLocal filename:", filename)
@@ -343,7 +349,7 @@ class PodcastArchiver:
                     # Check existence another time, with resolved link
                     link = response.geturl()
                     total_size = int(response.getheader('content-length', '0'))
-                    new_filename = self.linkToTargetFilename(link, must_have_ext=True)
+                    new_filename = self.linkToTargetFilename(link, title, must_have_ext=True)
 
                     if new_filename and new_filename != filename:
                         filename = new_filename
